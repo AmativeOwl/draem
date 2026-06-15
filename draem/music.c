@@ -162,3 +162,9 @@ char *get_note(char *root_note, int semitones)
 
     return map_num_to_note(new_num);
 }
+
+char *rand_root_note()
+{
+    int num = rand() % 12;
+    return map_num_to_note(num);
+}
