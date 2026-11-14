@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <time.h>
 #include <stddef.h>
 #include "music.h"
@@ -22,6 +23,66 @@ static const ChordTemplate QUALITY_TEMPLATES[][PROG_LEN] = {
     [MINOR] = {{9, MINOR, 9}, {5, MAJOR, 7}, {0, MAJOR, 7}, {7, DOM, 9}}, // vi - IV - I - V
     [DOM]   = {{0, MAJOR, 7}, {9, MINOR, 9}, {2, MINOR, 7}, {7, DOM, 9}}, // I - vi - ii - V
     [SUSP]  = {{9, MINOR, 9}, {2, MINOR, 7}, {7, DOM, 9}, {0, MAJOR, 7}}, // vi - ii - V - I
+};
+
+// ---- step 4: progressions for each mode ----
+// each chord is {semitones from the key's root, quality, extension (0 = triad)}
+
+static const ChordTemplate DREAMY_PROGS[][PROG_LEN] = {
+    {{0, MAJOR, 7}, {5, MAJOR, 9}, {0, MAJOR, 9}, {5, MAJOR, 7}},  // I - IV floating
+    {{0, MAJOR, 9}, {4, MINOR, 7}, {9, MINOR, 9}, {5, MAJOR, 7}},  // I - iii - vi - IV
+    {{5, MAJOR, 7}, {5, MINOR, 7}, {0, MAJOR, 7}, {0, MAJOR, 9}},  // IV - iv - I (borrowed minor iv)
+    {{9, MINOR, 9}, {5, MAJOR, 9}, {0, MAJOR, 7}, {7, SUSP, 9}},   // vi - IV - I - Vsus
+    {{0, MINOR, 9}, {8, MAJOR, 7}, {3, MAJOR, 9}, {10, SUSP, 7}},  // i - bVI - bIII - bVIIsus
+};
+
+static const ChordTemplate DRAMATIC_PROGS[][PROG_LEN] = {
+    {{0, MINOR, 0}, {8, MAJOR, 0}, {3, MAJOR, 0}, {10, MAJOR, 0}}, // i - bVI - bIII - bVII
+    {{0, MINOR, 0}, {10, MAJOR, 0}, {8, MAJOR, 0}, {7, MAJOR, 0}}, // i - bVII - bVI - V (Andalusian)
+    {{0, MINOR, 0}, {5, MINOR, 0}, {8, MAJOR, 0}, {7, DOM, 7}},    // i - iv - bVI - V7
+    {{0, MINOR, 0}, {1, MAJOR, 0}, {0, MINOR, 0}, {10, MAJOR, 0}}, // i - bII - i - bVII (Phrygian)
+    {{8, MAJOR, 0}, {10, MAJOR, 0}, {0, MINOR, 0}, {0, MINOR, 7}}, // bVI - bVII - i - i7 (build-up)
+};
+
+static const ChordTemplate BALLAD_PROGS[][PROG_LEN] = {
+    {{0, MAJOR, 0}, {7, MAJOR, 0}, {9, MINOR, 7}, {5, MAJOR, 7}},  // I - V - vi - IV
+    {{9, MINOR, 7}, {5, MAJOR, 9}, {0, MAJOR, 0}, {7, SUSP, 7}},   // vi - IV - I - Vsus
+    {{0, MAJOR, 9}, {9, MINOR, 7}, {5, MAJOR, 7}, {7, DOM, 7}},    // I - vi - IV - V
+    {{0, MAJOR, 7}, {4, MINOR, 7}, {5, MAJOR, 7}, {5, MINOR, 7}},  // I - iii - IV - iv
+};
+
+static const ChordTemplate CINEMATIC_PROGS[][PROG_LEN] = {
+    {{0, MINOR, 9}, {8, MAJOR, 9}, {3, MAJOR, 0}, {10, SUSP, 9}},  // epic minor
+    {{0, MINOR, 0}, {8, MAJOR, 7}, {5, MINOR, 9}, {7, SUSP, 7}},   // i - bVI - iv - Vsus
+    {{0, MAJOR, 0}, {8, MAJOR, 0}, {10, MAJOR, 0}, {0, MAJOR, 9}}, // I - bVI - bVII - I (heroic)
+    {{0, MINOR, 0}, {8, MAJOR, 0}, {3, MAJOR, 0}, {5, MAJOR, 0}},  // i - bVI - bIII - IV (Dorian lift)
+    {{0, MAJOR, 0}, {4, MAJOR, 0}, {9, MINOR, 0}, {5, MAJOR, 9}},  // I - III - vi - IV (chromatic mediant)
+};
+
+static const ChordTemplate JAZZ_PROGS[][PROG_LEN] = {
+    {{2, MINOR, 9}, {7, DOM, 13}, {0, MAJOR, 9}, {9, DOM, 9}},     // ii - V - I - VI7 (turnaround)
+    {{0, MAJOR, 9}, {9, MINOR, 7}, {2, MINOR, 9}, {7, DOM, 13}},   // I - vi - ii - V
+    {{4, MINOR, 7}, {9, DOM, 9}, {2, MINOR, 9}, {7, DOM, 13}},     // iii - VI7 - ii - V
+    {{2, HALFDIM, 7}, {7, DOM, 7}, {0, MINOR, 9}, {8, MAJOR, 7}},  // iiø - V7 - i - bVI (minor ii-V-i)
+    {{0, MAJOR, 7}, {1, DIM, 7}, {2, MINOR, 7}, {7, DOM, 9}},      // I - #idim7 - ii - V (passing dim)
+    {{2, MINOR, 9}, {1, DOM, 9}, {0, MAJOR, 9}, {9, MINOR, 7}},    // ii - bII7 - I - vi (tritone sub)
+};
+
+// each mode's table plus how many progressions it has
+typedef struct
+{
+    const ChordTemplate (*progs)[PROG_LEN];
+    int count;
+} ModeBank;
+
+#define BANK(arr) {arr, (int)(sizeof(arr) / sizeof(arr[0]))}
+
+static const ModeBank MODE_BANKS[NUM_MODES] = {
+    [DREAMY] = BANK(DREAMY_PROGS),
+    [DRAMATIC] = BANK(DRAMATIC_PROGS),
+    [BALLAD] = BANK(BALLAD_PROGS),
+    [CINEMATIC] = BANK(CINEMATIC_PROGS),
+    [JAZZ] = BANK(JAZZ_PROGS),
 };
 
 Progression generate_progression(char *root_key, Quality base_quality)
@@ -174,7 +235,7 @@ int chord_notes(const Chord *chord, int *out) {
 
 static Progression build_progression(char *root_key, const ChordTemplate *t) {
     Progression progression; 
-    progression.chordSize = 4;
+    progression.chordSize = PROG_LEN;
     progression.chords = malloc(progression.chordSize * sizeof(Chord));
 
     if (progression.chords == NULL) {
@@ -189,4 +250,100 @@ static Progression build_progression(char *root_key, const ChordTemplate *t) {
     }
 
     return progression;
+}
+
+
+// ---- step 5: pick a progression for a mode ----
+Progression generate_mode_progression(Mode mode, char *root_key)
+{
+    Progression empty = {NULL, 0};
+
+    if (map_note_to_num(root_key) == -1)
+        return empty; // invalid root note
+
+    if ((int)mode < 0 || (int)mode >= NUM_MODES)
+        return empty; // unknown mode
+
+    const ModeBank *bank = &MODE_BANKS[mode];
+
+    // avoid giving the same progression twice in a row
+    static int last_pick[NUM_MODES] = {-1, -1, -1, -1, -1};
+    int pick = rand() % bank->count;
+    if (bank->count > 1 && pick == last_pick[mode])
+        pick = (pick + 1 + rand() % (bank->count - 1)) % bank->count;
+    last_pick[mode] = pick;
+
+    return build_progression(root_key, bank->progs[pick]);
+}
+
+// ---- step 6: names ----
+const char *get_mode_name(Mode mode)
+{
+    switch (mode)
+    {
+    case DREAMY:
+        return "Dreamy";
+    case DRAMATIC:
+        return "Dramatic";
+    case BALLAD:
+        return "Ballad";
+    case CINEMATIC:
+        return "Cinematic";
+    case JAZZ:
+        return "Jazz";
+    }
+    return "Unknown";
+}
+
+// accepts a number ("1".."5") or a name in any case ("dreamy", "JAZZ"); returns -1 if unknown
+int parse_mode(const char *text)
+{
+    if (text == NULL)
+        return -1;
+
+    if (text[0] >= '1' && text[0] < '1' + NUM_MODES && text[1] == '\0')
+        return text[0] - '1';
+
+    for (int m = 0; m < NUM_MODES; m++)
+    {
+        const char *name = get_mode_name((Mode)m);
+        int i = 0;
+        while (text[i] != '\0' && tolower((unsigned char)text[i]) == tolower((unsigned char)name[i]))
+            i++;
+        if (text[i] == '\0' && name[i] == '\0')
+            return m;
+    }
+
+    return -1;
+}
+
+// writes a readable chord name like "C#m7", "G13", "Bm7b5" into buf
+void chord_name(const Chord *chord, char *buf, size_t size)
+{
+    int ext = chord->extension;
+    const char *suffix = "";
+
+    switch (chord->quality)
+    {
+    case MAJOR:
+        suffix = ext >= 13 ? "maj13" : ext >= 9 ? "maj9" : ext >= 7 ? "maj7" : "";
+        break;
+    case MINOR:
+        suffix = ext >= 13 ? "m13" : ext >= 9 ? "m9" : ext >= 7 ? "m7" : "m";
+        break;
+    case DOM:
+        suffix = ext >= 13 ? "13" : ext >= 9 ? "9" : "7";
+        break;
+    case SUSP:
+        suffix = ext >= 13 ? "13sus4" : ext >= 9 ? "9sus4" : ext >= 7 ? "7sus4" : "sus4";
+        break;
+    case HALFDIM:
+        suffix = "m7b5";
+        break;
+    case DIM:
+        suffix = ext >= 7 ? "dim7" : "dim";
+        break;
+    }
+
+    snprintf(buf, size, "%s%s", chord->key, suffix);
 }
