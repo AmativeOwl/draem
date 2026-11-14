@@ -15,45 +15,6 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-// semitone offsets from the chord root, based on quality and extension (7 or 9).
-static int chord_intervals(const Chord *chord, int *out)
-{
-    int n = 0;
-    out[n++] = 0;
-
-    switch (chord->quality)
-    {
-    case MAJOR:
-        out[n++] = 4;
-        out[n++] = 7;
-        if (chord->extension >= 7)
-            out[n++] = 11; // major 7th
-        break;
-    case MINOR:
-        out[n++] = 3;
-        out[n++] = 7;
-        if (chord->extension >= 7)
-            out[n++] = 10; // minor 7th
-        break;
-    case DOM:
-        out[n++] = 4;
-        out[n++] = 7;
-        out[n++] = 10; // dominant always has the flat 7th
-        break;
-    case SUSP:
-        out[n++] = 5;
-        out[n++] = 7;
-        if (chord->extension >= 7)
-            out[n++] = 10;
-        break;
-    }
-
-    if (chord->extension >= 9)
-        out[n++] = 14; // 9th
-
-    return n;
-}
-
 static double midi_to_freq(int midi)
 {
     return 440.0 * pow(2.0, (midi - 69) / 12.0);
@@ -111,7 +72,7 @@ int play_progression(const Progression *progression, double seconds_per_chord)
             root = 0;
 
         int intervals[MAX_VOICES];
-        int n = chord_intervals(chord, intervals);
+        int n = chord_notes(chord, intervals);
 
         double freqs[MAX_VOICES + 1];
         int voices = 0;

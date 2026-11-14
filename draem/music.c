@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <stddef.h>
 #include "music.h"
 
 #define NUM_NOTES 12
@@ -11,76 +12,29 @@ void init_music(void)
     srand(time(NULL));
 }
 
-// one chord in a progression template: offset from the root, quality, extension
-typedef struct
-{
-    int semitones;
-    Quality quality;
-    int extension;
-} ChordTemplate;
-
 #define PROG_LEN 4
-#define TEMPLATES_PER_QUALITY 4
 
-// [quality][template][chord]; the first template of each quality is the original one
-static const ChordTemplate TEMPLATES[4][TEMPLATES_PER_QUALITY][PROG_LEN] = {
-    [MAJOR] = {
-        {{2, MINOR, 7}, {7, DOM, 9}, {0, MAJOR, 7}, {0, MAJOR, 9}},   // ii - V - I - I
-        {{0, MAJOR, 7}, {9, MINOR, 7}, {2, MINOR, 9}, {7, DOM, 9}},   // I - vi - ii - V
-        {{0, MAJOR, 9}, {7, MAJOR, 7}, {9, MINOR, 7}, {5, MAJOR, 9}}, // I - V - vi - IV
-        {{5, MAJOR, 7}, {4, MINOR, 7}, {2, MINOR, 9}, {0, MAJOR, 9}}, // IV - iii - ii - I
-    },
-    [MINOR] = {
-        {{9, MINOR, 9}, {5, MAJOR, 7}, {0, MAJOR, 7}, {7, DOM, 9}},   // vi - IV - I - V
-        {{0, MINOR, 9}, {8, MAJOR, 7}, {3, MAJOR, 7}, {10, MAJOR, 9}}, // i - VI - III - VII
-        {{0, MINOR, 7}, {5, MINOR, 9}, {7, MINOR, 7}, {0, MINOR, 9}}, // i - iv - v - i
-        {{0, MINOR, 9}, {5, MINOR, 7}, {10, DOM, 9}, {3, MAJOR, 7}},  // i - iv - VII - III
-    },
-    [DOM] = {
-        {{0, MAJOR, 7}, {9, MINOR, 9}, {2, MINOR, 7}, {7, DOM, 9}},   // I - vi - ii - V
-        {{4, MINOR, 7}, {9, MINOR, 9}, {2, MINOR, 7}, {7, DOM, 9}},   // iii - vi - ii - V
-        {{0, DOM, 7}, {5, DOM, 9}, {0, DOM, 9}, {7, DOM, 7}},         // I7 - IV7 - I7 - V7 (blues)
-        {{9, DOM, 9}, {2, DOM, 7}, {7, DOM, 9}, {0, MAJOR, 7}},       // VI7 - II7 - V7 - I
-    },
-    [SUSP] = {
-        {{9, MINOR, 9}, {2, MINOR, 7}, {7, DOM, 9}, {0, MAJOR, 7}},   // vi - ii - V - I
-        {{0, SUSP, 9}, {5, MAJOR, 7}, {9, MINOR, 7}, {7, SUSP, 7}},   // Isus - IV - vi - Vsus
-        {{5, MAJOR, 9}, {7, SUSP, 7}, {4, MINOR, 7}, {9, MINOR, 9}},  // IV - Vsus - iii - vi
-        {{0, MAJOR, 7}, {2, SUSP, 9}, {5, MAJOR, 9}, {7, SUSP, 7}},   // I - IIsus - IV - Vsus
-    },
+static Progression build_progression(char *root_key, const ChordTemplate *t); // defined further down
+
+// one progression per base quality (MAJOR..SUSP), same chords as the original switch
+static const ChordTemplate QUALITY_TEMPLATES[][PROG_LEN] = {
+    [MAJOR] = {{2, MINOR, 7}, {7, DOM, 9}, {0, MAJOR, 7}, {0, MAJOR, 9}}, // ii - V - I - I
+    [MINOR] = {{9, MINOR, 9}, {5, MAJOR, 7}, {0, MAJOR, 7}, {7, DOM, 9}}, // vi - IV - I - V
+    [DOM]   = {{0, MAJOR, 7}, {9, MINOR, 9}, {2, MINOR, 7}, {7, DOM, 9}}, // I - vi - ii - V
+    [SUSP]  = {{9, MINOR, 9}, {2, MINOR, 7}, {7, DOM, 9}, {0, MAJOR, 7}}, // vi - ii - V - I
 };
 
 Progression generate_progression(char *root_key, Quality base_quality)
 {
-    Progression progression;
-    progression.chordSize = PROG_LEN;
+    Progression empty = {NULL, 0};
 
-    if (map_note_to_num(root_key) == -1 || base_quality < MAJOR || base_quality > SUSP)
-    {
-        progression.chords = NULL;
-        progression.chordSize = 0;
-        return progression; // invalid root note or quality
-    }
+    if (map_note_to_num(root_key) == -1)
+        return empty; // invalid root note
 
-    progression.chords = malloc(progression.chordSize * sizeof(Chord));
+    if (base_quality < MAJOR || base_quality > SUSP)
+        return empty; // only the four base qualities have templates
 
-    if (progression.chords == NULL)
-    {
-        progression.chordSize = 0;
-        return progression; // return an empty progression if memory allocation fails
-    }
-
-    // pick one of this quality's progressions at random
-    const ChordTemplate *t = TEMPLATES[base_quality][rand() % TEMPLATES_PER_QUALITY];
-
-    for (int i = 0; i < progression.chordSize; i++)
-    {
-        progression.chords[i].key = get_note(root_key, t[i].semitones);
-        progression.chords[i].quality = t[i].quality;
-        progression.chords[i].extension = t[i].extension;
-    }
-
-    return progression;
+    return build_progression(root_key, QUALITY_TEMPLATES[base_quality]);
 }
 
 int map_note_to_num(char *note)
@@ -166,4 +120,73 @@ void free_progression(Progression *progression)
     free(progression->chords);
     progression->chords = NULL;
     progression->chordSize = 0;
+}
+
+int chord_notes(const Chord *chord, int *out) {
+    int third = 4, fifth = 7, seventh = 11; // defaults to major
+
+    switch (chord->quality) {
+        case MAJOR: 
+            break;
+        case MINOR:
+            third = 3; 
+            seventh = 10; 
+            break;
+        case DOM: 
+            seventh = 10; 
+            break;
+        case SUSP:
+            third = 5; 
+            seventh = 10; 
+            break;
+        case HALFDIM:
+            third = 3; 
+            fifth = 6; 
+            seventh = 10; 
+            break;
+        case DIM: 
+            third = 3; 
+            fifth = 6; 
+            seventh = 9; 
+            break;
+    }
+
+    int n = 0; 
+
+    out[n++] = 0; // root
+    out[n++] = third; // third
+    out[n++] = fifth; // fifth 
+
+    if (chord->extension >= 7 || chord->quality == DOM) {
+        out[n++] = seventh; // seventh
+    }
+
+    if (chord->extension >= 9) {
+        out[n++] = 14; // ninth
+    }
+
+    if (chord->extension >= 13) {
+        out[n++] = 21; // thirteenth
+    }
+    
+    return n; // return the number of notes in the chord
+}
+
+static Progression build_progression(char *root_key, const ChordTemplate *t) {
+    Progression progression; 
+    progression.chordSize = 4;
+    progression.chords = malloc(progression.chordSize * sizeof(Chord));
+
+    if (progression.chords == NULL) {
+        progression.chordSize = 0;
+        return progression; // return an empty progression if memory allocation fails
+    }
+
+    for (int i = 0; i < progression.chordSize; i++) {
+        progression.chords[i].key = get_note(root_key, t[i].semitones);
+        progression.chords[i].quality = t[i].quality;
+        progression.chords[i].extension = t[i].extension;
+    }
+
+    return progression;
 }

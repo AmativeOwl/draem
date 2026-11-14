@@ -29,6 +29,13 @@ typedef struct
     int extension; // 0 = triad, 7, 9 or 13
 } Chord;
 
+typedef struct 
+{
+    int semitones; 
+    Quality quality;
+    int extension; 
+} ChordTemplate;
+
 typedef struct
 {
     Chord *chords;
