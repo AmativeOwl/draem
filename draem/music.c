@@ -96,29 +96,29 @@ Progression generate_progression(char *root_key, Quality base_quality)
 int map_note_to_num(char *note)
 {
     int num = 0;
-    if (strcmp(note, "C") == 0)
+    if (strcmp(note, "C") == 0 || strcmp(note, "c") == 0)
         num = 0;
-    else if (strcmp(note, "C#") == 0 || strcmp(note, "Db") == 0)
+    else if (strcmp(note, "C#") == 0 || strcmp(note, "Db") == 0 || strcmp(note, "c#") == 0 || strcmp(note, "db") == 0)
         num = 1;
-    else if (strcmp(note, "D") == 0)
+    else if (strcmp(note, "D") == 0 || strcmp(note, "d") == 0)
         num = 2;
-    else if (strcmp(note, "D#") == 0 || strcmp(note, "Eb") == 0)
+    else if (strcmp(note, "D#") == 0 || strcmp(note, "Eb") == 0 || strcmp(note, "d#") == 0 || strcmp(note, "eb") == 0)
         num = 3;
-    else if (strcmp(note, "E") == 0)
+    else if (strcmp(note, "E") == 0 || strcmp(note, "e") == 0)
         num = 4;
-    else if (strcmp(note, "F") == 0)
+    else if (strcmp(note, "F") == 0 || strcmp(note, "f") == 0)
         num = 5;
-    else if (strcmp(note, "F#") == 0 || strcmp(note, "Gb") == 0)
+    else if (strcmp(note, "F#") == 0 || strcmp(note, "Gb") == 0 || strcmp(note, "f#") == 0 || strcmp(note, "gb") == 0)
         num = 6;
-    else if (strcmp(note, "G") == 0)
+    else if (strcmp(note, "G") == 0 || strcmp(note, "g") == 0)
         num = 7;
-    else if (strcmp(note, "G#") == 0 || strcmp(note, "Ab") == 0)
+    else if (strcmp(note, "G#") == 0 || strcmp(note, "Ab") == 0 || strcmp(note, "g#") == 0 || strcmp(note, "ab") == 0)
         num = 8;
-    else if (strcmp(note, "A") == 0)
+    else if (strcmp(note, "A") == 0 || strcmp(note, "a") == 0)
         num = 9;
-    else if (strcmp(note, "A#") == 0 || strcmp(note, "Bb") == 0)
+    else if (strcmp(note, "A#") == 0 || strcmp(note, "Bb") == 0 || strcmp(note, "a#") == 0 || strcmp(note, "bb") == 0)
         num = 10;
-    else if (strcmp(note, "B") == 0)
+    else if (strcmp(note, "B") == 0 || strcmp(note, "b") == 0)
         num = 11;
 
     return num;
@@ -152,6 +152,8 @@ char *map_num_to_note(int num)
         return "A#";
     case 11:
         return "B";
+    default: 
+        return "C";
     }
 }
 
@@ -167,4 +169,11 @@ char *rand_root_note()
 {
     int num = rand() % 12;
     return map_num_to_note(num);
+}
+
+void free_progression(Progression *progression)
+{
+    free(progression->chords);
+    progression->chords = NULL;
+    progression->chordSize = 0;
 }

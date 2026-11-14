@@ -34,5 +34,6 @@ int map_note_to_num(char *note);
 char *map_num_to_note(int num);
 char *get_note(char *root_note, int semitones);
 char *rand_root_note();
+void free_progression(Progression *progression);
 
 #endif

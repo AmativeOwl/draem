@@ -14,5 +14,7 @@ int main(int argc, char *argv[])
         printf("%s %d %d\n", p.chords[i].key, p.chords[i].quality, p.chords[i].extension);
     }
 
+    free_progression(&p);
+
     return 0;
 }
