@@ -29,6 +29,7 @@ typedef struct
     int chordSize;
 } Progression;
 
+void init_music(void);
 Progression generate_progression(char *root_key, Quality base_quality);
 int map_note_to_num(char *note);
 char *map_num_to_note(int num);

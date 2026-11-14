@@ -1,15 +1,35 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include "music.h"
 
 #define NUM_NOTES 12
+
+void init_music(void)
+{
+    srand(time(NULL));
+}
 
 Progression generate_progression(char *root_key, Quality base_quality)
 {
     Progression progression;
     progression.chordSize = 4;
+
+    if (map_note_to_num(root_key) == -1)
+    {
+        progression.chords = NULL;
+        progression.chordSize = 0;
+        return progression; // invalid root note
+    }
+
     progression.chords = malloc(progression.chordSize * sizeof(Chord));
+    
+    if (progression.chords == NULL)
+    {
+        progression.chordSize = 0;
+        return progression; // return an empty progression if memory allocation fails
+    }
 
     switch (base_quality)
     {
@@ -95,7 +115,7 @@ Progression generate_progression(char *root_key, Quality base_quality)
 
 int map_note_to_num(char *note)
 {
-    int num = 0;
+    int num = -1; // handling invalid input which defaults to -1 (not a note)
     if (strcmp(note, "C") == 0 || strcmp(note, "c") == 0)
         num = 0;
     else if (strcmp(note, "C#") == 0 || strcmp(note, "Db") == 0 || strcmp(note, "c#") == 0 || strcmp(note, "db") == 0)
@@ -160,7 +180,7 @@ char *map_num_to_note(int num)
 char *get_note(char *root_note, int semitones)
 {
     int num = map_note_to_num(root_note);
-    int new_num = (num + semitones) % NUM_NOTES;
+    int new_num = ((num + semitones) % NUM_NOTES + NUM_NOTES) % NUM_NOTES; // ensure new_num is within [0, 11]
 
     return map_num_to_note(new_num);
 }

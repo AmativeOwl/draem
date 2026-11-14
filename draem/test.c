@@ -6,6 +6,7 @@
 
 int main(int argc, char *argv[])
 {
+    init_music();
     char *note = rand_root_note();
     Progression p = generate_progression(note, MAJOR);
 
