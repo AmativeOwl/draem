@@ -5,16 +5,34 @@
 #include "music.h"
 #include "audio.h"
 
+static const char *chord_suffix(const Chord *c)
+{
+    switch (c->quality)
+    {
+    case MAJOR:
+        return c->extension == 9 ? "maj9" : "maj7";
+    case MINOR:
+        return c->extension == 9 ? "m9" : "m7";
+    case DOM:
+        return c->extension == 9 ? "9" : "7";
+    case SUSP:
+        return c->extension == 9 ? "9sus4" : "7sus4";
+    }
+    return "";
+}
+
 int main(int argc, char *argv[])
 {
     init_music();
     char *note = rand_root_note();
-    Progression p = generate_progression(note, MAJOR);
+    Quality quality = (Quality)(rand() % 4);
+    Progression p = generate_progression(note, quality);
 
     for (int i = 0; i < p.chordSize; i++)
     {
-        printf("%s %d %d\n", p.chords[i].key, p.chords[i].quality, p.chords[i].extension);
+        printf("%s%s  ", p.chords[i].key, chord_suffix(&p.chords[i]));
     }
+    printf("\n");
 
     if (play_progression(&p, 2.0) != 0)
     {
